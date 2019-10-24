@@ -24,14 +24,14 @@ namespace ClassicGraphics
         readonly int PIXELWIDTH = 128;
         readonly int PIXELHEIGHT = 128;
         bool doDraw;
-        bool blink;
 
         List<Keys> accountedKeys;
+        int[] cursorPos;
 
         int[] worldSize;
         Wall[,] map;
         double[] pos;
-        byte facing;
+        UInt16 facing;
 
         public Game1()
         {
@@ -40,6 +40,8 @@ namespace ClassicGraphics
             graphics.PreferredBackBufferWidth = PIXELHEIGHT * PIXELSIZE;
             Content.RootDirectory = "Content";
             accountedKeys = new List<Keys>();
+            cursorPos = new int[] { PIXELWIDTH * PIXELSIZE / 2, PIXELHEIGHT * PIXELSIZE / 2 };
+            Mouse.SetPosition(PIXELWIDTH * PIXELSIZE / 2, PIXELHEIGHT * PIXELSIZE / 2);
 
             pm = new PictureManager();
 
@@ -153,8 +155,16 @@ namespace ClassicGraphics
         {
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Q))
                 Exit();
+            else if (!this.IsActive)
+            {
+                return;
+            }
 
-            blink = !blink;
+            // Get how much mouse's x moved
+            MouseState ms = Mouse.GetState();
+            int dMouseX = ms.X - cursorPos[0];
+            facing = (UInt16)(facing + 40*dMouseX);
+            Mouse.SetPosition(PIXELWIDTH * PIXELSIZE / 2, PIXELHEIGHT*PIXELSIZE/2);
 
             // Get newly pressed keys
             List<Keys> newKeys = new List<Keys>();
@@ -191,23 +201,29 @@ namespace ClassicGraphics
             }
             if (accountedKeys.Contains(Keys.A))
             {
-                facing -= 2;
+                double DTOR = Math.PI / 180;
+                double[] dC = { Math.Cos((double)facing / UInt16.MaxValue * 360 * DTOR), Math.Sin((double)facing / UInt16.MaxValue * 360 * DTOR) };
+                pos[0] -= dC[1] * -0.08;
+                pos[1] -= dC[0] * 0.08;
             }
             if (accountedKeys.Contains(Keys.D))
             {
-                facing += 2;
+                double DTOR = Math.PI / 180;
+                double[] dC = { Math.Cos((double)facing / UInt16.MaxValue * 360 * DTOR), Math.Sin((double)facing / UInt16.MaxValue * 360 * DTOR) };
+                pos[0] += dC[1] * -0.08;
+                pos[1] += dC[0] * 0.08;
             }
             if (accountedKeys.Contains(Keys.W))
             {
                 double DTOR = Math.PI / 180;
-                double[] dC = { Math.Cos((double)facing / byte.MaxValue * 360 * DTOR), Math.Sin((double)facing / byte.MaxValue * 360 * DTOR) };
+                double[] dC = { Math.Cos((double)facing / UInt16.MaxValue * 360 * DTOR), Math.Sin((double)facing / UInt16.MaxValue * 360 * DTOR) };
                 pos[0] += dC[0] * 0.08;
                 pos[1] += dC[1] * 0.08;
             }
             if (accountedKeys.Contains(Keys.S))
             {
                 double DTOR = Math.PI / 180;
-                double[] dC = { Math.Cos((double)facing / byte.MaxValue * 360 * DTOR), Math.Sin((double)facing / byte.MaxValue * 360 * DTOR) };
+                double[] dC = { Math.Cos((double)facing / UInt16.MaxValue * 360 * DTOR), Math.Sin((double)facing / UInt16.MaxValue * 360 * DTOR) };
                 pos[0] -= dC[0] * 0.08;
                 pos[1] -= dC[1] * 0.08;
             }
@@ -244,22 +260,9 @@ namespace ClassicGraphics
                 }
             }
 
-            if (blink)
-            {
-                DrawBlink();
-
-                DrawCoords();
-            }
-
             spriteBatch.End();
 
             base.Draw(gameTime);
-        }
-
-        void DrawBlink()
-        {
-            Rectangle rect = new Rectangle(new Point(30, graphics.PreferredBackBufferHeight - 30), new Point(30, 30));
-            spriteBatch.Draw(tex, rect, Color.Purple);
         }
 
         void DrawBackground()
@@ -275,20 +278,6 @@ namespace ClassicGraphics
                 }
             }
         }
-
-        void DrawCoords()
-        {
-            byte[] x = BitConverter.GetBytes(pos[0]);
-            byte[] y = BitConverter.GetBytes(pos[1]);
-
-            for (int i = 0; i < x.Length; i++)
-            {
-                Rectangle rect = new Rectangle(new Point(i * PIXELSIZE, graphics.PreferredBackBufferHeight - (2 * PIXELSIZE)), new Point(PIXELSIZE, PIXELSIZE));
-                spriteBatch.Draw(tex, rect, new Color((float)x[i] / byte.MaxValue, (float)x[i] / byte.MaxValue, (float)x[i] / byte.MaxValue));
-                rect = new Rectangle(new Point(i * PIXELSIZE, graphics.PreferredBackBufferHeight - (3 * PIXELSIZE)), new Point(PIXELSIZE, PIXELSIZE));
-                spriteBatch.Draw(tex, rect, new Color((float)y[i] / byte.MaxValue, (float)y[i] / byte.MaxValue, (float)y[i] / byte.MaxValue));
-            }
-        }
         
         void DrawWalls()
         {
@@ -298,7 +287,7 @@ namespace ClassicGraphics
 
             // Convert facing from byte to degrees
             double dir = (double)facing;
-            dir /= byte.MaxValue;
+            dir /= UInt16.MaxValue;
             dir *= 359;
 
             // x < PIXELWIDTH
@@ -417,18 +406,60 @@ namespace ClassicGraphics
                         // Test spot for empty or not
                         if (GetWall(newXF, true) != null)
                         {
-                            found = true;
-                            wallPos = newXF;
-                            drawPos = wallPos[1] % 1;
-                            w = GetWall(newXF, true);
+
+                            // continue through y up to x but not past, if y finds wall first, add that otherwise add x's find
+                            while (GetSign(newYF[0].CompareTo(newXF[0])) != sign[0])
+                            {
+                                // Test spot for empty or not
+                                if (GetWall(newYF, false) != null)
+                                {
+                                    found = true;
+                                    wallPos = newYF;
+                                    drawPos = wallPos[0] % 1;
+                                    w = GetWall(newYF, false);
+                                    break;
+                                }
+                                // Increment newYF
+                                newYF[1] += sign[1];
+                                newYF[0] = (newYF[1] - yInt) / slope;
+                            }
+
+                            if (!found)
+                            {
+                                found = true;
+                                wallPos = newXF;
+                                drawPos = wallPos[1] % 1;
+                                w = GetWall(newXF, true);
+                            }
                             break;
                         }
                         else if (GetWall(newYF, false) != null)
                         {
-                            found = true;
-                            wallPos = newYF;
-                            drawPos = wallPos[0] % 1;
-                            w = GetWall(newYF, false);
+
+                            // continue through x up to y but not past, if x finds wall first, add that otherwise add y's find
+                            while (GetSign(newXF[1].CompareTo(newYF[1])) != sign[1])
+                            {
+                                // Test spot for empty or not
+                                if (GetWall(newXF, true) != null)
+                                {
+                                    found = true;
+                                    wallPos = newXF;
+                                    drawPos = wallPos[1] % 1;
+                                    w = GetWall(newXF, true);
+                                    break;
+                                }
+                                // Increment newXF
+                                newXF[0] += sign[0];
+                                newXF[1] = slope * newXF[0] + yInt;
+                            }
+
+                            if (!found)
+                            {
+                                found = true;
+                                wallPos = newYF;
+                                drawPos = wallPos[0] % 1;
+                                w = GetWall(newYF, false);
+                            }
                             break;
                         }
 
