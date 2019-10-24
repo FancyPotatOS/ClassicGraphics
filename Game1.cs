@@ -595,6 +595,13 @@ namespace ClassicGraphics
 
                 float[] rawCol = pic.c[picXPos, picYPos];
                 Color col = new Color(rawCol[0], rawCol[1], rawCol[2]);
+
+                float darkness = (float)(1 / Math.Sqrt(Math.Max(1, distance / 3)));
+
+                col.B = (byte)Math.Min(byte.MaxValue, (((float)col.B) * darkness));
+                col.G = (byte)Math.Min(byte.MaxValue, (((float)col.G) * darkness));
+                col.R = (byte)Math.Min(byte.MaxValue, (((float)col.R) * darkness));
+
                 spriteBatch.Draw(tex, rect, col);
             }
         }
