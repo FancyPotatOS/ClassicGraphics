@@ -43,19 +43,24 @@ namespace ClassicGraphics
 
             pm = new PictureManager();
 
-            worldSize = new int[] { 10, 10 };
+            worldSize = new int[] { 20, 20 };
             map = new Wall[worldSize[0], worldSize[1]];
             pos = new double[] { 4, 4 };
             facing = 0;
 
             for (int i = 0; i < worldSize[0]; i++)
             {
-                map[0, i] = new Wall("save/turtle.pic");
-                map[worldSize[0]-1, i] = new Wall("save/alt.pic");
-                map[i, 0] = new Wall("save/turtle.pic");
-                map[i, worldSize[0]-1] = new Wall("save/alt.pic");
+                map[0, i] = new Wall("stone_wall.pic");
+                map[worldSize[0]-1, i] = new Wall("stone_wall.pic");
+                map[i, 0] = new Wall("stone_wall.pic");
+                map[i, worldSize[0]-1] = new Wall("stone_wall.pic");
             }
-            
+
+            map[2, 2] = new Wall("stone_wall.pic");
+            map[2, 3] = new Wall("stone_wall.pic");
+            map[2, 4] = new Wall("stone_wall.pic");
+            map[3, 5] = new Wall("stone_wall.pic");
+
 
         }
 
@@ -68,24 +73,51 @@ namespace ClassicGraphics
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
-
-            
-            if (!Directory.Exists("save"))
+            float[,][] col = new float[PIXELWIDTH, PIXELHEIGHT][];
+            for (int x = 0; x < PIXELWIDTH; x++)
             {
-                Directory.CreateDirectory("save");
-                float[,][] col = new float[PIXELWIDTH, PIXELHEIGHT][];
-                for (float x = 0; x < PIXELWIDTH; x++)
+                for (int y = 0; y < PIXELHEIGHT; y++)
                 {
-                    for (float y = 0; y < PIXELHEIGHT; y++)
-                    {
-                        float colo = 0.15F;
-                        if (y < PIXELHEIGHT / 2) { colo = 0.30F; }
-                        col[(int)x, (int)y] = new float[] { colo, colo, colo };
-                    }
+                    float colo = 0.15F;
+                    if (y < PIXELHEIGHT / 2) { colo = 0.30F; }
+                    col[x, y] = new float[] { colo, colo, colo };
                 }
-                pm.Add("save/background.pic", new Picture(col));
+            }
+            Picture back = new Picture(col);
+            pm.Add("background.pic", back);
+            background = back;
+
+            Texture2D texture;
+            string[] dir = Directory.GetFiles(Content.RootDirectory);
+            for (int i = 0; i < dir.Length; i++)
+            {
+                if (dir[i].EndsWith(".xnb"))
+                {
+                    string newName = dir[i].Remove(dir[i].Length - 4);
+                    newName = newName.Remove(0, Content.RootDirectory.Length + 1);
+                    texture = Content.Load<Texture2D>(newName);
+
+                    newName += ".pic";
+                    Picture p = TexToPic(texture);
+                    pm.Add(newName, p);
+                }
+            }
+            dir = Directory.GetFiles(Content.RootDirectory + "/text");
+            for (int i = 0; i < dir.Length; i++)
+            {
+                if (dir[i].EndsWith(".xnb"))
+                {
+                    string newName = dir[i].Remove(dir[i].Length - 4);
+                    newName = newName.Remove(0, Content.RootDirectory.Length + 1);
+                    texture = Content.Load<Texture2D>(newName);
+
+                    newName += ".pic";
+                    Picture p = TexToPic(texture);
+                    pm.Add(newName, p);
+                }
             }
 
+            background = pm.Get("background.pic");
             tex = Content.Load<Texture2D>("wP");
 
             base.Initialize();
@@ -99,22 +131,6 @@ namespace ClassicGraphics
         {
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            pm.Add("save/background.pic");
-            Texture2D texture = Content.Load<Texture2D>("blue");
-            pm.Add("save/blue.pic", TexToPic(texture));
-            texture = Content.Load<Texture2D>("red");
-            pm.Add("save/red.pic", TexToPic(texture));
-            texture = Content.Load<Texture2D>("green");
-            pm.Add("save/green.pic", TexToPic(texture));
-            texture = Content.Load<Texture2D>("yellow");
-            pm.Add("save/yellow.pic", TexToPic(texture));
-            texture = Content.Load<Texture2D>("Turtle Icon");
-            pm.Add("save/turtle.pic", TexToPic(texture));
-            texture = Content.Load<Texture2D>("Alt");
-            pm.Add("save/alt.pic", TexToPic(texture));
-
-            background = pm.Get("save/background.pic");
 
             // TODO: use this.Content to load your game content here
         }
@@ -331,7 +347,7 @@ namespace ClassicGraphics
                         }
                         if (!didDraw)
                         {
-                            Picture pic = pm.Get("save/blue.pic");
+                            Picture pic = pm.Get("blue.pic");
                             printTileLine(x, newPos[0] % 1, GetFauxDistance(newPos, pos, (dT * convertDToR)), pic);
                         }
                     }
@@ -359,7 +375,7 @@ namespace ClassicGraphics
                         }
                         if (!didDraw)
                         {
-                            Picture pic = pm.Get("save/blue.pic");
+                            Picture pic = pm.Get("blue.pic");
                             printTileLine(x, newPos[1] % 1, GetFauxDistance(newPos, pos, (dT * convertDToR)), pic);
                         }
                     }
@@ -476,7 +492,7 @@ namespace ClassicGraphics
                     // Did not find a wall, draw default blue
                     else
                     {
-                        Picture pic = pm.Get("save/blue.pic");
+                        Picture pic = pm.Get("blue.pic");
                         printTileLine(x, 0.5, 2, pic);
                     }
 
